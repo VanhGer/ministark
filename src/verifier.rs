@@ -79,6 +79,8 @@ pub fn default_verify<S: Stark>(
         .into_iter()
         .zip(execution_trace_ood_evals)
         .collect::<BTreeMap<(usize, isize), S::Fq>>();
+
+    // compute composition evaluation at z
     let calculated_ood_constraint_evaluation = ood_constraint_evaluation::<S::AirConfig>(
         &composition_coeffs,
         &air_challenges,
@@ -88,6 +90,7 @@ pub fn default_verify<S: Stark>(
         z,
     );
 
+    // fully composition evaluation at z
     let provided_ood_constraint_evaluation = horner_evaluate(&composition_trace_ood_evals, &z);
 
     if calculated_ood_constraint_evaluation != provided_ood_constraint_evaluation {
@@ -252,6 +255,8 @@ pub fn deep_composition_evaluations<A: AirConfig>(
     let z_n = z.pow([air.ce_blowup_factor() as u64]);
     let lde_domain = air.lde_domain();
     let lde_domain_size = lde_domain.size();
+
+    // reverse positions
     let xs = query_positions
         .iter()
         .map(|pos| lde_domain.element(bit_reverse_index(lde_domain_size, *pos)))

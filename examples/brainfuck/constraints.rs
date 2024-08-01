@@ -44,6 +44,8 @@ impl ProcessorBaseColumn {
         let mem_val_is_zero = MemVal.curr() * MemValInv.curr() - one;
         let mut constraints = (None, None, None);
 
+        // println!("memval cur: {:?}", MemVal.curr() + one);
+
         use OpCode::*;
         for instr in OpCode::VALUES {
             // max degree: 4
@@ -97,6 +99,7 @@ impl ProcessorBaseColumn {
 
             // max degree: 7
             let deselector = if_not_instr(instr, CurrInstr.curr());
+
             let update = |lhs, rhs| match (lhs, rhs) {
                 (Some(lhs), Some(rhs)) => Some(lhs + &deselector * &rhs * CurrInstr.curr()),
                 (None, Some(rhs)) => Some(&deselector * &rhs * CurrInstr.curr()),
@@ -108,6 +111,11 @@ impl ProcessorBaseColumn {
             constraints.1 = update(constraints.1, instr_constraints.1);
             constraints.2 = update(constraints.2, instr_constraints.2);
         }
+
+        // println!("constraints 0 {:?}", constraints.0);
+        // println!("constraints 1 {:?}", constraints.1);
+        // println!("constraints 2 {:?}", constraints.2);
+
 
         vec![
             constraints.0.unwrap(),

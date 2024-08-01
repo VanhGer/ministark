@@ -37,6 +37,7 @@ pub fn default_prove<S: Stark>(
     );
 
     let now = Instant::now();
+    // generate AIR from trace_len, public_inputs,
     let air = Air::new(trace.len(), this.get_public_inputs(), options);
     let public_coin = this.gen_public_coin(&air);
     let mut channel = ProverChannel::<S>::new(&air, public_coin);
@@ -47,14 +48,18 @@ pub fn default_prove<S: Stark>(
     let lde_xs = air.lde_domain();
     let base_trace = trace.base_columns();
     assert_eq!(S::AirConfig::NUM_BASE_COLUMNS, base_trace.num_cols());
+    /// interpolate base column in trace domain
     let base_trace_polys = base_trace.interpolate(trace_xs);
+    /// evaluate base poly in lde domain
     let mut base_trace_lde = base_trace_polys.bit_reversed_evaluate(lde_xs);
+    /// commit base trace
     let base_trace_tree = S::MerkleTree::from_matrix(&base_trace_lde);
     println!("Base trace commitment: {:?}", now.elapsed());
 
     channel.commit_base_trace(base_trace_tree.root());
     let num_challenges = air.num_challenges();
     let challenges = Challenges::new(draw_multiple(&mut channel.public_coin, num_challenges));
+    /// hints are terminals for evaluation arguments.
     let hints = air.gen_hints(&challenges);
 
     let now = Instant::now();
@@ -83,6 +88,8 @@ pub fn default_prove<S: Stark>(
         // be in natural order. Note that for the remainder of the protocol the trace
         // should entirely be in bit-reversed order hence why this function is
         // called again at the end of the block.
+
+        // constraint evaluation lde domain
         let ce_lde_xs = air.ce_domain();
         let ce_domain_size = ce_lde_xs.size();
         let base_trace_ce_cols = bit_reverse_ce_trace(ce_domain_size, &mut base_trace_lde);
@@ -92,9 +99,11 @@ pub fn default_prove<S: Stark>(
 
         let num_composition_coeffs = air.num_composition_constraint_coeffs();
         let composition_coeffs = draw_multiple(&mut channel.public_coin, num_composition_coeffs);
+
         let x_lde = ce_lde_xs.elements().collect::<Vec<_>>();
 
         let now = Instant::now();
+        /// evaluate composition constraints over the ce domain with challenge coeffs
         let composition_evals = S::AirConfig::eval_constraint(
             air.composition_constraint(),
             &challenges,
@@ -108,19 +117,26 @@ pub fn default_prove<S: Stark>(
         println!("Constraint eval: {:?}", now.elapsed());
 
         let now = Instant::now();
+        // interpolate to get the univariate polynomial
         let composition_poly =
             GpuVec::try_from(composition_evals.into_polynomials(air.ce_domain())).unwrap();
+
+        // println!("composition poly coeffs {:?}", composition_poly)
+
         let mut composition_trace_cols = (0..air.ce_blowup_factor())
             .map(|_| Vec::with_capacity_in(air.trace_len(), GpuAllocator))
             .collect::<Vec<_>>();
+        // seperate composition poly into air.ce_blowup_factor parts. EX: H(x) = H1(x^2) + x*H2(x^2)
         for chunk in composition_poly.chunks(composition_trace_cols.len()) {
             for i in 0..composition_trace_cols.len() {
                 composition_trace_cols[i].push(chunk[i]);
             }
         }
         composition_trace_polys = Matrix::new(composition_trace_cols);
+        // evaluate each parts in air.lde_domain ?
         composition_trace_lde = composition_trace_polys.bit_reversed_evaluate(air.lde_domain());
         composition_trace_tree = S::MerkleTree::from_matrix(&composition_trace_lde);
+        // commit composition polynomial
         channel.commit_composition_trace(composition_trace_tree.root());
         println!("Composition trace commitment: {:?}", now.elapsed());
 
@@ -131,7 +147,10 @@ pub fn default_prove<S: Stark>(
     }
 
     let now = Instant::now();
+    // random z
     let z = channel.get_ood_point();
+
+    // deep method.
     let mut deep_poly_composer = DeepPolyComposer::new(
         &air,
         z,

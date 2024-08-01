@@ -106,15 +106,19 @@ const OPTIONS: ProofOptions = {
 
 fn main() {
     // read command-line args
-    match BrainfuckOptions::from_args() {
-        BrainfuckOptions::Prove { src, dst, input } => prove(src, input, dst),
-        BrainfuckOptions::Verify {
-            src,
-            proof,
-            input,
-            output,
-        } => verify(src, input, output, proof),
-    }
+    // match BrainfuckOptions::from_args() {
+    //     BrainfuckOptions::Prove { src, dst, input } => prove(src, input, dst),
+    //     BrainfuckOptions::Verify {
+    //         src,
+    //         proof,
+    //         input,
+    //         output,
+    //     } => verify(src, input, output, proof),
+    // }
+    println!("Generate Proof!");
+    prove("./examples/brainfuck/hello_world.bf".parse().unwrap(), "".parse().unwrap(), "./hello_world.proof".parse().unwrap());
+    println!("Verify Proof!");
+    verify("./examples/brainfuck/hello_world.bf".parse().unwrap(), "".parse().unwrap(), "Hello World".parse().unwrap(), "./hello_world.proof".parse().unwrap());
 }
 
 fn prove(source_code_path: PathBuf, input: String, output_path: PathBuf) {

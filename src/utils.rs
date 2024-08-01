@@ -177,7 +177,7 @@ pub fn divide_out_points_into<F: Field>(p_coeffs: &mut [F], zs: &[F], cs: &[F]) 
 pub fn field_bits<F: Field>() -> u32 {
     let base_field_modulus = <F::BasePrimeField as PrimeField>::MODULUS;
     let base_field_bits = base_field_modulus.num_bits();
-    let extension_field_degree = u32::try_from(F::extension_degree()).unwrap();
+    let extension_field_degree = u32::try_from(F::extension_degree()).unwrap(); // 3
     extension_field_degree * base_field_bits
 }
 

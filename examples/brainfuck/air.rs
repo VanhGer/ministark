@@ -10,7 +10,7 @@ use ark_poly::EvaluationDomain;
 use ark_poly::Radix2EvaluationDomain;
 use ministark::air::AirConfig;
 use ministark::challenges::Challenges;
-use ministark::constraints::AlgebraicItem;
+use ministark::constraints::{AlgebraicItem, ExecutionTraceColumn};
 use ministark::constraints::Constraint;
 use ministark::constraints::Hint;
 use ministark::constraints::VerifierChallenge;
@@ -19,6 +19,7 @@ use ministark::utils::FieldVariant;
 use ministark_gpu::fields::p18446744069414584321::ark::Fp;
 use ministark_gpu::fields::p18446744069414584321::ark::Fq3;
 use num_traits::Pow;
+use crate::tables::ProcessorBaseColumn::{Cycle, Ip};
 
 pub struct BrainfuckAirConfig;
 
@@ -42,7 +43,7 @@ impl AirConfig for BrainfuckAirConfig {
             input,
             output,
         } = execution_info;
-
+        /// offset * terminal = final terminal 2^k length.
         let (input_eval_arg, input_eval_offset) =
             io_terminal_helper(input, challenges[Gamma.index()], trace_len);
         let (output_eval_arg, output_eval_offset) =
@@ -85,6 +86,17 @@ impl AirConfig for BrainfuckAirConfig {
             constraint * ((X - last_trace_x) / (X.pow(trace_len) - one))
         });
 
+        // println!("transition_constraints: {:?}", transition_constraints);
+
+        // let tmp = [tables::ProcessorBaseColumn::transition_constraints()]
+        //     .into_iter().flatten().map(|constraint| {
+        //     constraint / (X - first_trace_x)
+        // });
+
+        // println!("hehe: {:?}", Some(Ip.next() - Ip.curr() - one));
+        // println!("cycle {:?}", Cycle.next() - Cycle.curr() - one);
+        // println!("tmp: {:?}", tmp);
+
         let boundary_constraints = [
             tables::ProcessorBaseColumn::boundary_constraints(),
             tables::ProcessorExtensionColumn::boundary_constraints(),
@@ -102,6 +114,9 @@ impl AirConfig for BrainfuckAirConfig {
             constraint / (X - first_trace_x)
         });
 
+        // println!("boundary: {:?}", boundary_constraints.);
+
+        // let d = tables::ProcessorBaseColumn::boundary_constraints();
         let terminal_constraints = [
             tables::ProcessorExtensionColumn::terminal_constraints(),
             tables::InstructionExtensionColumn::terminal_constraints(),
@@ -117,12 +132,16 @@ impl AirConfig for BrainfuckAirConfig {
             constraint / (X - last_trace_x)
         });
 
+        // let d = tables::ProcessorBaseColumn::boundary_constraints();
+
         transition_constraints
             .chain(boundary_constraints)
             .chain(terminal_constraints)
             .map(Constraint::from)
             .collect()
     }
+
+
 }
 
 // Computes the evaluation terminal for the instruction table

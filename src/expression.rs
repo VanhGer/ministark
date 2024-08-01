@@ -29,7 +29,7 @@ use std::sync::RwLock;
 pub type P<T> = Arc<RwLock<T>>;
 
 /// Expression
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Expr<T> {
     Leaf(T),
     Neg(P<Expr<T>>),
@@ -124,6 +124,7 @@ impl<T> Expr<T> {
         // The lint's suggestion "Using Option::map_or_else" doesn't work because
         // `.insert` requires mutable access to seen (which is already borrowed).
         #[allow(clippy::option_if_let_else)]
+        // if the node is found
         if let Some(node) = sn.get(&addr_of!(*this.read().unwrap())) {
             Arc::clone(node)
         } else {

@@ -149,6 +149,10 @@ impl<T> Constraint<T> {
         Self(expression)
     }
 
+    pub fn get_inside(&self) -> &Expr<AlgebraicItem<T>> {
+        &self.0
+    }
+
     /// Calculates an upper bound on the degree in X.
     /// Output is of the form `(numerator_degree, denominator_degree)`
     pub fn degree(&self, trace_degree: usize) -> (usize, usize) {
@@ -251,11 +255,15 @@ impl<T> Constraint<T> {
     // Adapted from https://github.com/0xProject/OpenZKP
     pub fn trace_arguments(&self) -> BTreeSet<(usize, isize)> {
         let mut arguments = BTreeSet::new();
+        let mut tmp = BTreeSet::new();
         self.traverse(&mut |node| {
             if let &Expr::Leaf(AlgebraicItem::Trace(i, j)) = node {
+                tmp.insert(i);
                 arguments.insert((i, j));
             }
         });
+        // println!("self: {:?}", self.get_inside().clone());
+        // println!("{:?}", tmp);
         arguments
     }
 }
@@ -303,6 +311,7 @@ impl<T: Zero> Sum<Self> for Expr<CompositionItem<T>> {
     }
 }
 
+#[derive(Debug)]
 pub struct CompositionConstraint<T: 'static>(Expr<CompositionItem<T>>);
 
 impl<T: Clone + Copy + Zero + Ord + Hash> CompositionConstraint<T> {
@@ -313,6 +322,7 @@ impl<T: Clone + Copy + Zero + Ord + Hash> CompositionConstraint<T> {
     /// Calculates an upper bound on the degree in X.
     /// Output is of the form `(numerator_degree, denominator_degree)`
     pub fn degree(&self, trace_degree: usize) -> (usize, usize) {
+        // compute the degree after symbolic evaluation
         let Degree(numerator_degree, denominator_degree) =
             self.0.eval(&mut |leaf| leaf.degree(trace_degree));
         (numerator_degree, denominator_degree)

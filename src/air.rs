@@ -51,6 +51,7 @@ pub trait AirConfig: Send + Sync + Sized + 'static {
         trace_len: usize,
         constraints: &[Constraint<FieldVariant<Self::Fp, Self::Fq>>],
     ) -> CompositionConstraint<FieldVariant<Self::Fp, Self::Fq>> {
+        // blow up factor that need to make the size of domain contains the constraint evaluation
         let ce_blowup_factor = constraints
             .iter()
             .map(|c| c.blowup_factor(trace_len))
@@ -60,6 +61,7 @@ pub trait AirConfig: Send + Sync + Sized + 'static {
         let trace_degree = trace_len - 1;
         let x = Expr::Leaf(CompositionItem::Item(AlgebraicItem::X));
         let mut composition_coeff = (0..).map(|i| Expr::Leaf(CompositionItem::CompositionCoeff(i)));
+        /// nonlinear combination via challenges: (0, 1, 2,...)
         let expr = constraints
             .iter()
             .map(|constraint| {
@@ -99,6 +101,10 @@ pub trait AirConfig: Send + Sync + Sized + 'static {
                 AlgebraicItem::Constant(FieldVariant::Fq(composition_constraint_coeffs[*i]))
             }
         });
+
+        // println!("composition constraint: {:?}", composition_constraint);
+        // println!("eval expr: {:?}", eval_expr);
+
         // TODO: add back in
         // .reuse_shared_nodes();
         // TODO: GPU constraint eval is currently slower than CPU
@@ -143,9 +149,18 @@ pub struct Air<AC: AirConfig> {
 
 impl<C: AirConfig> Air<C> {
     pub fn new(trace_len: usize, public_inputs: C::PublicInputs, options: ProofOptions) -> Self {
+        /// compute constraints
         let constraints = C::constraints(trace_len);
+
+        // for c in constraints.clone() {
+        //     println!("c degree: {:?}", c.degree(trace_len));
+        // }
+
+        // combine multiple constraints into one.
         let composition_constraint = C::composition_constraint(trace_len, &constraints);
+        // trace length * ce_blowup_factor = max degree after symbolic evaluating
         let ce_blowup_factor = composition_constraint.blowup_factor(trace_len);
+        // ???
         assert!(ce_blowup_factor <= options.lde_blowup_factor.into());
 
         Self {
@@ -238,6 +253,9 @@ impl<C: AirConfig> Air<C> {
         &self.composition_constraint
     }
 
+
+    // return a set of (i, j) where i is the column and j is the offset which appears in
+    // constraints.
     pub fn trace_arguments(&self) -> BTreeSet<(usize, isize)> {
         self.constraints
             .iter()

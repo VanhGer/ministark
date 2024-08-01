@@ -162,7 +162,7 @@ where
             });
         }
 
-        // // layers store interlaved evaluations so they need to be un-interleaved
+        // // layers store interleaved evaluations so they need to be un-interleaved
         // let remainder_commitment = last_layer.tree.root().to_vec();
         // let last_evals = &last_layer.evaluations;
         // let mut remainder = vec![F::zero(); last_evals.len()];
@@ -182,6 +182,7 @@ where
         mut evaluations: GpuVec<F>,
     ) {
         assert!(self.layers.is_empty());
+        // println!("evaluation len: {:?}", evaluations.len());
         for _ in 0..self.options.num_layers(evaluations.len()) {
             evaluations = match self.options.folding_factor {
                 2 => self.build_layer::<2>(channel, evaluations),
@@ -654,11 +655,14 @@ fn query_layer<F: GpuField + Field, D: Digest, M: MatrixMerkleTree<F, Root = D>,
 where
     F::FftField: FftField,
 {
+    // proof for every positions
     let merkle_proof = layer.merkle_tree.prove_rows(positions).unwrap();
     let mut rows: Vec<[F; N]> = Vec::new();
     for &position in positions {
         let row = layer.evaluations.get_row(position).unwrap();
         rows.push(row.try_into().unwrap());
     }
+
+    // leaves, proofs and root.
     LayerProof::new(rows, merkle_proof, layer.merkle_tree.root())
 }
